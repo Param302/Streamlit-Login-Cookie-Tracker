@@ -1,18 +1,22 @@
+import json
 import datetime
 import firebase_admin
 import streamlit as st
 from streamlit_option_menu import option_menu
 from firebase_admin import credentials, firestore
 
-# Initialize Firebase only if it has not been initialized
-auth = credentials.Certificate("./firebase_credentials.json")
-if not firebase_admin._apps:
-    firebase_admin.initialize_app(auth)
 
-# Connect to Firestore
+def initialize_firebase():
+    global auth
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app(auth)
+
+firebase_credentials = json.loads(st.secrets["firebase"]["firebase_credentials"])
+auth = credentials.Certificate(firebase_credentials)
+
+initialize_firebase()
 db = firestore.client()
 
-# Set up Streamlit page configuration
 st.set_page_config(page_title="Daily Kharcha")
 
 # st.session_state['user_id'] = "1234"
