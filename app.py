@@ -15,6 +15,12 @@ db = firestore.client()
 # Set up Streamlit page configuration
 st.set_page_config(page_title="Daily Kharcha")
 
+nav_args = {
+    "styles": {"menu-title": {"align-self": "center"}},
+    "default_index": 0,
+    "orientation": "horizontal"
+}
+
 # st.session_state['user_id'] = "1234"
 st.session_state.pop("user_id", None)
 
@@ -23,16 +29,12 @@ if "user_id" in st.session_state:
         "Daily Kharcha",
         ["Today's Expenses", "Previous Expenses"],
         icons=['calendar-date', 'clock-history'],
-        styles={"menu-title": {"align-self": "center"}},
         menu_icon="house-door", 
-        default_index=0, 
-        orientation="horizontal")
+        **nav_args)
 else:
     nav_option = option_menu(
         "Account",
         ["Login", "Register"],
         icons=['box-arrow-in-right', 'person-plus'],
-        styles={"menu-title": {"align-self": "center"}},
-        menu_icon="person-circle", 
-        default_index=0, 
-        orientation="horizontal")
+        menu_icon="person-circle",
+        **nav_args)
