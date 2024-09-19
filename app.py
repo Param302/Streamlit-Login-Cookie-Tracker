@@ -24,7 +24,7 @@ firebase = initialize_firebase()
 auth = firebase.auth()
 db = firestore.client()
 
-st.set_page_config(page_title="Daily Kharcha")
+st.set_page_config(page_title=f"Daily Kharcha {'- ' + st.session_state.user['displayName'] if 'user' in st.session_state else ''}", page_icon="💰")
 
 def validate_inputs(**params) -> bool:  
     empty_values = [f"**{key.title()}**" for key, value in params.items() if not value]
@@ -84,44 +84,70 @@ def start_registration_process(email, password, name):
         print("REGISTERING")
         register_user(email, password, name)
         error_space.success("Registration successful!")
-    verify_email()
-    verify_email_dialog()
+    verify_email(st.session_state.reg_user)
+    verify_email_dialog(st.session_state.reg_user)
 
 def register_user(email, password, name):
     user = auth.create_user_with_email_and_password(email, password)
     #!ERROR case need to be handled here
     auth.update_profile(user['idToken'], display_name=name)
-    st.session_state.user = user
+    st.session_state.reg_user = user
 
-
-def verify_email():
+def verify_email(user):
     print("I am being called")
-    user = auth.refresh(st.session_state.user['refreshToken'])
+    user = auth.refresh(user['refreshToken'])
     auth.send_email_verification(user['idToken'])
 
 
 @st.dialog("Verify your Email")
-def verify_email_dialog():
+def verify_email_dialog(user):
+
+    def wrapper():
+        st.session_state.email_resend = True
+        verify_email(user)
+        msg.info("Verification link has been resent. Please check your inbox.")
+        st.stop()
+
+    msg = st.empty()
     st.markdown("""Please verify your email to activate your account. A verification link has been sent to your inbox. 
 
 Check your email (including spam/junk folders) and click the link to complete the process.""")
-    if st.button("OK"):
-        st.rerun()
+    
+    
+    if 'reg_user' in st.session_state:
+        return
+
+    _, resend, _ = st.columns(3)
+    st.session_state.email_resend = False
+    resend_btn = resend.button("Resend", type="primary", use_container_width=True, on_click=wrapper, disabled=st.session_state.email_resend)
+
+    
+
+def is_email_verified(user):
+    details = auth.get_account_info(user['idToken'])
+    return details['users'][0]['emailVerified']
 
 
 def login_user(email, password):
-
     user = auth.sign_in_with_email_and_password(email, password)
+    print("LOGGGGGGGGGGGGGGGING IN")
+    print(user)
+    print(dir(user))
     if not user:
-        st.error("Invalid email or password.")
+        status_space.error("Invalid email or password.")
         return None
     
-    # st.session_state['user_id'] = user['localId']
-    # st.session_state['user_email'] = user['email']
-    # st.session_state['user_name'] = user_data.get('name', user.email)
-    print(st.session_state)
-    st.success(f"Welcome `{st.session_state['user_email']}`!")
-    return user
+    if not is_email_verified(user):
+        status_space.error("Email Not Verified!")
+        verify_email_dialog(user)
+        return
+    
+    st.session_state.user = user
+
+
+    status_space.success(f"Welcome **{st.session_state.user['displayName']}**!")
+    time.sleep(2)
+    st.rerun()
 
 
 nav_args = {
@@ -133,19 +159,19 @@ nav_args = {
 # st.session_state['user_id'] = "1234"
 # st.session_state.pop("user_id", None)
 
-if "user_id" in st.session_state:
+if "user" in st.session_state:
     nav_option = option_menu(
-        "Daily Kharcha",
+        f"Daily Kharcha - {st.session_state.user['displayName']}",
         ["Today's Expenses", "Previous Expenses"],
         icons=['calendar-date', 'clock-history'],
-        menu_icon="house-door", 
+        menu_icon="person-circle", 
         **nav_args)
 else:
     st.markdown("""<style>.stSpinner>div{display:flex;justify-content:center;}</style>""",
             unsafe_allow_html=True)
             
     nav_option = option_menu(
-        "Account",
+        "Daily Kharcha",
         ["Login", "Register"],
         icons=['box-arrow-in-right', 'person-plus'],
         menu_icon="person-circle",
@@ -187,15 +213,17 @@ else:
                     user = admin_auth.get_user_by_email(email)
                     print(user)
                     print(dir(user))
-                    print(user.email_verified, user.display_name, user.uid, st.session_state.user["localId"])
+                    print(user.email_verified, user.display_name, user.uid, st.session_state.reg_user["localId"])
                     if user.email_verified:
                         error_space.success("You are verified! Please login to continue.")
                     else:
                         error_space.success("Registration successful! Please verify your email to activate your account.")
+                    st.session_state.clear()
 
     elif nav_option == "Login":
         with st.form("login_form"):
             st.write("<div style='text-align:center; font-size:2rem; font-weight:600;'>Sign in</div>", unsafe_allow_html=True)
+            status_space = st.empty()
             _, email_col, _ = st.columns([0.2, 0.6, 0.2])
             _, password_col, _ = st.columns([0.2, 0.6, 0.2])
             st.write("")
