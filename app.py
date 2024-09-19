@@ -1,7 +1,7 @@
-from math import e
 import re
 import json
 import datetime
+import pyrebase
 import firebase_admin
 import streamlit as st
 from streamlit_option_menu import option_menu
@@ -9,14 +9,17 @@ from firebase_admin import credentials, firestore
 
 
 def initialize_firebase():
-    global auth
+    firebase_credentials = json.loads(st.secrets["firebase"]["credentials"])
+    firebase_config = json.loads(st.secrets["firebase"]["config"])
+
+    cred = credentials.Certificate(firebase_credentials)
     if not firebase_admin._apps:
-        firebase_admin.initialize_app(auth)
+        firebase_admin.initialize_app(cred)
+    
+    return pyrebase.initialize_app(firebase_config)
 
-firebase_credentials = json.loads(st.secrets["firebase"]["firebase_credentials"])
-auth = credentials.Certificate(firebase_credentials)
-
-initialize_firebase()
+firebase = initialize_firebase()
+auth = firebase.auth()
 db = firestore.client()
 
 st.set_page_config(page_title="Daily Kharcha")
@@ -73,16 +76,19 @@ def validate_inputs(**params) -> bool:
 
 
 def register_user(email, password, name):
-    user = auth.create_user(email=email, password=password)
-    user_ref = db.collection('users').document(user.uid)
-    user_ref.set({
-        'name': name,
-        'email': email
-    })
-    st.success(f"User {user.email} registered successfully!")
+    user = auth.create_user(email=email, password=password, display_name=name)
+    print(user)
+    # user_ref = db.collection('users').document(user.uid)
+    # user_ref.set({
+    #     'name': name,
+    #     'email': email
+    # })
+    # st.success(f"User {user.email} registered successfully!")
 
 
 def login_user(email, password):
+
+    auth.get_user
 
     user = auth.sign_in_with_email_and_password(email, password)
     if not user:
@@ -147,9 +153,14 @@ else:
             
             if submit_button:
                 if validate_inputs(**{"name": name, "email": email, "password": password, "confirm password": conf_password}):
+                    name = name.strip()
+                    email = email.strip()
+                    password = password.strip()
+                    conf_password = conf_password.strip()
+
                     print("REGISTERING")
-                    print(email, password, name)
-                    # register_user(email, password, name)      
+                    print(email, name, password)
+                    register_user(email, password, name)
 
     elif nav_option == "Login":
         with st.form("login_form"):
@@ -168,6 +179,8 @@ else:
             
             if submit_button:
                 if validate_inputs(**{"email": email, "password": password}):
+                    email = email.strip()
+                    password = password.strip()
                     print("LOGGING IN")
                     print(email, password)
                     # login_user(email, password)
