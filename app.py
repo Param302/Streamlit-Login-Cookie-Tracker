@@ -2,6 +2,7 @@ import re
 import json
 import time
 import datetime
+from numpy import delete
 import pyrebase
 import firebase_admin
 import streamlit as st
@@ -48,7 +49,7 @@ def validate_inputs(**params) -> bool:
 
     # if sign up form
     password = params["password"].strip()
-    conf_password = params["confirm password"].strip()
+    conf_password = params["confirm_password"].strip()
     name = params["name"].strip()
 
     if len(password) < 8 or len(password) > 32:
@@ -85,14 +86,14 @@ def start_registration_process(email, password, name):
         print(email, name, password)
         st.session_state.registration_status = "pending"
         # user = register_user(email, password, name)
-        # time.sleep(20)
-    # with st.spinner("Verifying email..."):
-    #     st.session_state.registration_status = "verifying"
-    #     st.session_state.registering = False
-    #     st.success("Please verify your email address to continue.")
-    #     auth.send_email_verification(user['idToken'])
-    user = {"email": email}
-    error_space.success(f"User {user['email']} registered successfully!")
+
+        st.session_state.registration_status = "verifying"
+        st.session_state.registering = False
+        error_space.success("Registration successful!")
+        user = {"email": email}
+        # auth.send_email_verification(user['idToken'])
+        verify_email_dialog(user)
+
 
 def register_user(email, password, name):
     user = auth.create_user_with_email_and_password(email, password)
@@ -100,6 +101,25 @@ def register_user(email, password, name):
     #!ERROR case need to be handled here
     auth.update_profile(user['idToken'], display_name=name)
     return user
+
+
+@st.dialog("Verify your Email")
+def verify_email_dialog(user):
+    global verified
+    st.markdown("""Please verify your email to activate your account. A verification link has been sent to your inbox. 
+
+Check your email (including spam/junk folders) and click the link to complete the process.""")
+    if st.session_state.registration_status != "verified":
+        st.write("_<font color='orange'>Didn't receive the email?</font>_", unsafe_allow_html=True)
+        if st.button("Resend"):
+            status = st.empty()
+            status.info("Resending verification email...")
+            # auth.refresh(user['refreshToken'])
+            time.sleep(2)
+            status.success("Verification email sent successfully!")
+            time.sleep(5)
+            st.session_state.registration_status = "verified"
+            st.rerun()
 
 
 def login_user(email, password):
@@ -145,7 +165,7 @@ else:
         **nav_args)
     
     if nav_option == "Register":
-        with st.form("registration_form"):
+        with st.form("registration_form", clear_on_submit=True):
             st.write("<div style='text-align:center; font-size:2rem; font-weight:600;'>Create an account</div>", unsafe_allow_html=True)
             error_space = st.empty()
             col1, col2 = st.columns(2, gap="medium")
@@ -166,15 +186,18 @@ else:
                 submit_button = st.form_submit_button("Register", type="primary", use_container_width=True)
             
             if submit_button:
-                if validate_inputs(**{"name": name, "email": email, "password": password, "confirm password": conf_password}):
+                if validate_inputs(name=name, email=email, password=password, confirm_password=conf_password):
                     name = name.strip()
-                    email = email.strip()
+                    email = email.strip().lower()
                     password = password.strip()
                     conf_password = conf_password.strip()
 
                     print("REGISTERING")
                     print(email, name, password)
                     start_registration_process(email, password, name)
+
+            if st.session_state.registration_status == "verified":
+                error_space.success("You are verified! Please login to continue.")
 
     elif nav_option == "Login":
         with st.form("login_form"):
