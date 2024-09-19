@@ -76,33 +76,24 @@ def validate_inputs(**params) -> bool:
 
 
 def register_user(email, password, name):
-    user = auth.create_user(email=email, password=password, display_name=name)
+    user = auth.create_user_with_email_and_password(email, password)
     print(user)
-    # user_ref = db.collection('users').document(user.uid)
-    # user_ref.set({
-    #     'name': name,
-    #     'email': email
-    # })
+
     # st.success(f"User {user.email} registered successfully!")
 
 
 def login_user(email, password):
-
-    auth.get_user
 
     user = auth.sign_in_with_email_and_password(email, password)
     if not user:
         st.error("Invalid email or password.")
         return None
     
-    user_ref = db.collection('users').document(user.uid)
-    user_data = user_ref.get().to_dict()
-
-    st.session_state['user_id'] = user.uid
-    st.session_state['user_email'] = user.email
-    st.session_state['user_name'] = user_data.get('name', user.email)
-    
-    st.success(f"Welcome {st.session_state['user_name']}")
+    st.session_state['user_id'] = user['localId']
+    st.session_state['user_email'] = user['email']
+    # st.session_state['user_name'] = user_data.get('name', user.email)
+    print(st.session_state)
+    st.success(f"Welcome `{st.session_state['user_email']}`!")
     return user
 
 
@@ -183,7 +174,7 @@ else:
                     password = password.strip()
                     print("LOGGING IN")
                     print(email, password)
-                    # login_user(email, password)
+                    login_user(email, password)
                 # else:
                 #     st.error("Please enter email and password.")
     else:
