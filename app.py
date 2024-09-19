@@ -29,7 +29,6 @@ st.set_page_config(page_title=f"Daily Kharcha {'- ' + st.session_state.user['dis
 def validate_inputs(**params) -> bool:  
     empty_values = [f"**{key.title()}**" for key, value in params.items() if not value]
     if empty_values:
-        print("Empty values", empty_values)
         st.error(f"Please enter {(', '.join(empty_values[:-1]) + ' and ' + empty_values[-1]) if len(empty_values) > 1 else empty_values[0]}.")
         return False
     
@@ -81,7 +80,6 @@ def start_registration_process(email, password, name):
     This function will register, verify and update user profile.
     """
     with st.spinner("Registering..."):
-        print("REGISTERING")
         register_user(email, password, name)
         error_space.success("Registration successful!")
     verify_email(st.session_state.reg_user)
@@ -94,7 +92,6 @@ def register_user(email, password, name):
     st.session_state.reg_user = user
 
 def verify_email(user):
-    print("I am being called")
     user = auth.refresh(user['refreshToken'])
     auth.send_email_verification(user['idToken'])
 
@@ -130,9 +127,6 @@ def is_email_verified(user):
 
 def login_user(email, password):
     user = auth.sign_in_with_email_and_password(email, password)
-    print("LOGGGGGGGGGGGGGGGING IN")
-    print(user)
-    print(dir(user))
     if not user:
         status_space.error("Invalid email or password.")
         return None
@@ -143,8 +137,6 @@ def login_user(email, password):
         return
     
     st.session_state.user = user
-
-
     status_space.success(f"Welcome **{st.session_state.user['displayName']}**!")
     time.sleep(2)
     st.rerun()
@@ -205,15 +197,8 @@ else:
                     email = email.strip().lower()
                     password = password.strip()
                     conf_password = conf_password.strip()
-
-                    print("REGISTERING")
-                    print(email, name, password)
                     start_registration_process(email, password, name)
-                    print(st.session_state)
                     user = admin_auth.get_user_by_email(email)
-                    print(user)
-                    print(dir(user))
-                    print(user.email_verified, user.display_name, user.uid, st.session_state.reg_user["localId"])
                     if user.email_verified:
                         error_space.success("You are verified! Please login to continue.")
                     else:
@@ -240,7 +225,5 @@ else:
                 if validate_inputs(**{"email": email, "password": password}):
                     email = email.strip()
                     password = password.strip()
-                    print("LOGGING IN")
-                    print(email, password)
                     login_user(email, password)
 
