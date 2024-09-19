@@ -1,5 +1,6 @@
 import re
 import json
+import time
 import datetime
 import pyrebase
 import firebase_admin
@@ -70,16 +71,35 @@ def validate_inputs(**params) -> bool:
     if errors:
         error_msg = "**Please fix the following errors:**\n\n"
         error_msg += "\n".join([f"- {error}" for error in errors])
-        st.error(error_msg)
+        error_space.error(error_msg)
 
     return not errors
 
+def start_registration_process(email, password, name):
+    """
+    This function will register, verify and update user profile.
+    """
+    with st.spinner("Registering..."):
+        print("REGISTERING")
+        time.sleep(2)
+        print(email, name, password)
+        st.session_state.registration_status = "pending"
+        # user = register_user(email, password, name)
+        # time.sleep(20)
+    # with st.spinner("Verifying email..."):
+    #     st.session_state.registration_status = "verifying"
+    #     st.session_state.registering = False
+    #     st.success("Please verify your email address to continue.")
+    #     auth.send_email_verification(user['idToken'])
+    user = {"email": email}
+    error_space.success(f"User {user['email']} registered successfully!")
 
 def register_user(email, password, name):
     user = auth.create_user_with_email_and_password(email, password)
-    print(user)
-
-    # st.success(f"User {user.email} registered successfully!")
+    print(user)    
+    #!ERROR case need to be handled here
+    auth.update_profile(user['idToken'], display_name=name)
+    return user
 
 
 def login_user(email, password):
@@ -114,6 +134,9 @@ if "user_id" in st.session_state:
         menu_icon="house-door", 
         **nav_args)
 else:
+    st.markdown("""<style>.stSpinner>div{display:flex;justify-content:center;}</style>""",
+            unsafe_allow_html=True)
+            
     nav_option = option_menu(
         "Account",
         ["Login", "Register"],
@@ -151,7 +174,7 @@ else:
 
                     print("REGISTERING")
                     print(email, name, password)
-                    register_user(email, password, name)
+                    start_registration_process(email, password, name)
 
     elif nav_option == "Login":
         with st.form("login_form"):
