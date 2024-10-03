@@ -7,7 +7,9 @@ import streamlit as st
 from datetime import timedelta, datetime
 from requests.exceptions import HTTPError
 from streamlit_option_menu import option_menu
-from streamlit_cookies_manager import EncryptedCookieManager, CookieManager
+from streamlit_js_eval import streamlit_js_eval
+# from streamlit_cookies_manager import EncryptedCookieManager, CookieManager
+from extra_streamlit_components import CookieManager
 # import streamlit_authenticator as stauth
 from firebase_admin import credentials, firestore, auth as admin_auth
 
@@ -30,17 +32,23 @@ st.set_page_config(page_title="Daily Kharcha", page_icon="💰")
 
 # @st.cache_resource()
 # st.cache_data()
-def load_cookie_manager():
-    return CookieManager(prefix="daily_kharcha_")
+# def load_cookie_manager():
+#     return CookieManager(prefix="daily_kharcha_")
 
-cookies = load_cookie_manager()
-if not cookies.ready():
-    st.stop()
+# cookies = load_cookie_manager()
+cookies = CookieManager()
 
-# 14 days expiry
-cookies._default_expiry =  datetime.now() + timedelta(days=14)
+st.markdown(
+    """<style>
+        .element-container:has(iframe[height="0"]) { display: contents !important; }
+    </style>""",
+    unsafe_allow_html=True,
+)
 
-st.write(f"Current cookies: {[cookies.get(i) for i in cookies]}")
+st.write(f"Current cookies: {cookies.get_all()}")
+
+def reload_page():
+    streamlit_js_eval(js_expressions="parent.window.location.reload()")
 
 def validate_inputs(**params) -> bool:  
     empty_values = [f"**{key.title()}**" for key, value in params.items() if not value]
@@ -140,38 +148,30 @@ Check your email (including spam/junk folders) and click the link to complete th
     st.session_state.email_resend = False
     resend_btn = resend.button("Resend", type="primary", use_container_width=True, on_click=wrapper, disabled=st.session_state.email_resend)
 
-    
 
 def is_email_verified(user):
     details = auth.get_account_info(user['idToken'])
     return details['users'][0]['emailVerified']
 
 def login_user_with_cookie():
-    user = json.loads(cookies.get("user"))
+    user = cookies.get("cookie_user")
     if not is_email_verified(user):
         verify_email_dialog(user)
         return
-    
-    # user = auth.refresh(user['refreshToken'])
-    # cookies["user"] = json.dumps(user)
-    # cookies.save()
 
     st.session_state.user = user
-    # details = auth.get_account_info(user['idToken'])
+
+    st.session_state.user = user
     try:
-        details = auth.get_account_info("SDFSDFSDF")
+        auth.get_account_info(user['idToken'])
     except HTTPError:   # invalid token/token expired
         user = auth.refresh(user['refreshToken'])
-        print("-"*100, "\nREFRESSHED", user)
-        cookies["user"] = json.dumps(user)
-        cookies.save()
-        st.session_state.user = user
-        details = auth.get_account_info(user['idToken'])
-    print("DETAILS", details)
-    # _token = auth.create_custom_token(user['idToken'])
-    # auth.sign_in_with_custom_token(_token)
-    st.success(f"Welcome **{st.session_state.user_details['displayName']}**!")
-    time.sleep(2)
+    
+        cookies.set("cookie_user", user, expires_at=datetime.now() + timedelta(days=14), key="cookie_user")
+        cookies.set("cookie_user_details", cookies.get("cookie_user_details"), expires_at=datetime.now() + timedelta(days=14), key="cookie_user_details")
+        auth.get_account_info(user['idToken'])
+
+    st.session_state["user_details"] = cookies.get("cookie_user_details")
 
 
 def login_user(email, password):
@@ -185,25 +185,31 @@ def login_user(email, password):
         status_space.error("Email Not Verified!")
         verify_email_dialog(user)
         return
-    
-    print("USER IS", user)
-    user = auth.get_account_info(user['idToken'])
-    print("ACCOUNT INFO", user)
-    cookies["user"] = json.dumps(user)
-    cookies["userdetails"] = json.dumps({
-        "email": user["users"][0]["email"],
-        "displayName": user["users"][0]['displayName']
-    })
-    # cookies["username"] = 
-    cookies.save()
-    value = json.loads(cookies.get("user"))
-    print("COOKIES value",value)
-    print(type(value))
-    st.session_state.user_details = json.loads(cookies.get("userdetails"))
-    # st.session_state.user = value
+
+    cookies.set("cookie_user", user, expires_at=datetime.now() + timedelta(days=14), key="cookie_user")
+    cookies.set("cookie_user_details", {
+        "email": user["email"],
+        "displayName": user['displayName']
+    }, expires_at=datetime.now() + timedelta(days=14), key="cookie_user_details")
+
+    st.session_state.user_details = cookies.get("cookie_user_details")
+
     status_space.success(f"Welcome **{st.session_state.user_details['displayName']}**!")
     time.sleep(2)
-    st.rerun()
+    reload_page()
+
+def logout_user():
+    cookies.delete("cookie_user", key="cookie_user")
+    cookies.delete("cookie_user_details", key="cookie_user_details")
+
+    try:
+        st.session_state.pop("cookie_user")
+        st.session_state.pop("cookie_user_details")
+        st.session_state.pop("user_details")
+    except KeyError:
+        pass
+    # st.rerun()
+    reload_page()
 
 
 nav_args = {
@@ -212,16 +218,18 @@ nav_args = {
     "orientation": "horizontal"
 }
 
-
-if "user_details" in st.session_state:
+if st.session_state.get("cookie_user_details") and cookies.get("cookie_user_details"):
     login_user_with_cookie()
-    # print("COOKIES HERE VALUE", cookies.get("user"))
     nav_option = option_menu(
         f"Daily Kharcha",
         ["Today's Expenses", "Previous Expenses"],
         icons=['calendar-date', 'clock-history'],
         menu_icon="person-circle", 
         **nav_args)
+    
+    if nav_option == "Today's Expenses":
+        if st.button("Logout"):
+            logout_user()
 else:
     st.markdown("""<style>.stSpinner>div{display:flex;justify-content:center;}</style>""",
             unsafe_allow_html=True)
