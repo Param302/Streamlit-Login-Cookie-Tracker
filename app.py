@@ -8,9 +8,7 @@ from datetime import timedelta, datetime
 from requests.exceptions import HTTPError
 from streamlit_option_menu import option_menu
 from streamlit_js_eval import streamlit_js_eval
-# from streamlit_cookies_manager import EncryptedCookieManager, CookieManager
 from extra_streamlit_components import CookieManager
-# import streamlit_authenticator as stauth
 from firebase_admin import credentials, firestore, auth as admin_auth
 
 
@@ -30,13 +28,11 @@ db = firestore.client()
 
 st.set_page_config(page_title="Daily Kharcha", page_icon="💰")
 
-# @st.cache_resource()
-# st.cache_data()
-# def load_cookie_manager():
-#     return CookieManager(prefix="daily_kharcha_")
-
-# cookies = load_cookie_manager()
 cookies = CookieManager()
+cookie_params = {
+    "expires_at": datetime.now() + timedelta(days=14),
+    "secure": True
+}
 
 st.markdown(
     """<style>
@@ -44,8 +40,6 @@ st.markdown(
     </style>""",
     unsafe_allow_html=True,
 )
-
-st.write(f"Current cookies: {cookies.get_all()}")
 
 def reload_page():
     streamlit_js_eval(js_expressions="parent.window.location.reload()")
@@ -167,8 +161,8 @@ def login_user_with_cookie():
     except HTTPError:   # invalid token/token expired
         user = auth.refresh(user['refreshToken'])
     
-        cookies.set("cookie_user", user, expires_at=datetime.now() + timedelta(days=14), key="cookie_user")
-        cookies.set("cookie_user_details", cookies.get("cookie_user_details"), expires_at=datetime.now() + timedelta(days=14), key="cookie_user_details")
+        cookies.set("cookie_user", user, key="cookie_user", **cookie_params)
+        cookies.set("cookie_user_details", cookies.get("cookie_user_details"), key="cookie_user_details", **cookie_params)
         auth.get_account_info(user['idToken'])
 
     st.session_state["user_details"] = cookies.get("cookie_user_details")
@@ -186,11 +180,11 @@ def login_user(email, password):
         verify_email_dialog(user)
         return
 
-    cookies.set("cookie_user", user, expires_at=datetime.now() + timedelta(days=14), key="cookie_user")
+    cookies.set("cookie_user", user, key="cookie_user", **cookie_params)
     cookies.set("cookie_user_details", {
         "email": user["email"],
         "displayName": user['displayName']
-    }, expires_at=datetime.now() + timedelta(days=14), key="cookie_user_details")
+    }, key="cookie_user_details", **cookie_params)
 
     st.session_state.user_details = cookies.get("cookie_user_details")
 
@@ -199,15 +193,15 @@ def login_user(email, password):
     reload_page()
 
 def logout_user():
-    cookies.delete("cookie_user", key="cookie_user")
-    cookies.delete("cookie_user_details", key="cookie_user_details")
-
     try:
         st.session_state.pop("cookie_user")
         st.session_state.pop("cookie_user_details")
         st.session_state.pop("user_details")
     except KeyError:
         pass
+    cookies.delete("cookie_user", key="cookie_user")
+    cookies.delete("cookie_user_details", key="cookie_user_details")
+
     # st.rerun()
     reload_page()
 
@@ -218,7 +212,7 @@ nav_args = {
     "orientation": "horizontal"
 }
 
-if st.session_state.get("cookie_user_details") and cookies.get("cookie_user_details"):
+if cookies.get("cookie_user") and cookies.get("cookie_user_details"):
     login_user_with_cookie()
     nav_option = option_menu(
         f"Daily Kharcha",
