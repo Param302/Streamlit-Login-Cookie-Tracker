@@ -4,8 +4,11 @@ import time
 import pyrebase
 import firebase_admin
 import streamlit as st
+from datetime import timedelta, datetime
 from requests.exceptions import HTTPError
 from streamlit_option_menu import option_menu
+from streamlit_cookies_manager import EncryptedCookieManager, CookieManager
+# import streamlit_authenticator as stauth
 from firebase_admin import credentials, firestore, auth as admin_auth
 
 
@@ -23,7 +26,21 @@ firebase = initialize_firebase()
 auth = firebase.auth()
 db = firestore.client()
 
-st.set_page_config(page_title=f"Daily Kharcha {'- ' + st.session_state.user['displayName'] if 'user' in st.session_state else ''}", page_icon="💰")
+st.set_page_config(page_title="Daily Kharcha", page_icon="💰")
+
+# @st.cache_resource()
+# st.cache_data()
+def load_cookie_manager():
+    return CookieManager(prefix="daily_kharcha_")
+
+cookies = load_cookie_manager()
+if not cookies.ready():
+    st.stop()
+
+# 14 days expiry
+cookies._default_expiry =  datetime.now() + timedelta(days=14)
+
+st.write(f"Current cookies: {[cookies.get(i) for i in cookies]}")
 
 def validate_inputs(**params) -> bool:  
     empty_values = [f"**{key.title()}**" for key, value in params.items() if not value]
@@ -129,6 +146,33 @@ def is_email_verified(user):
     details = auth.get_account_info(user['idToken'])
     return details['users'][0]['emailVerified']
 
+def login_user_with_cookie():
+    user = json.loads(cookies.get("user"))
+    if not is_email_verified(user):
+        verify_email_dialog(user)
+        return
+    
+    # user = auth.refresh(user['refreshToken'])
+    # cookies["user"] = json.dumps(user)
+    # cookies.save()
+
+    st.session_state.user = user
+    # details = auth.get_account_info(user['idToken'])
+    try:
+        details = auth.get_account_info("SDFSDFSDF")
+    except HTTPError:   # invalid token/token expired
+        user = auth.refresh(user['refreshToken'])
+        print("-"*100, "\nREFRESSHED", user)
+        cookies["user"] = json.dumps(user)
+        cookies.save()
+        st.session_state.user = user
+        details = auth.get_account_info(user['idToken'])
+    print("DETAILS", details)
+    # _token = auth.create_custom_token(user['idToken'])
+    # auth.sign_in_with_custom_token(_token)
+    st.success(f"Welcome **{st.session_state.user_details['displayName']}**!")
+    time.sleep(2)
+
 
 def login_user(email, password):
     try:
@@ -142,8 +186,22 @@ def login_user(email, password):
         verify_email_dialog(user)
         return
     
-    st.session_state.user = user
-    status_space.success(f"Welcome **{st.session_state.user['displayName']}**!")
+    print("USER IS", user)
+    user = auth.get_account_info(user['idToken'])
+    print("ACCOUNT INFO", user)
+    cookies["user"] = json.dumps(user)
+    cookies["userdetails"] = json.dumps({
+        "email": user["users"][0]["email"],
+        "displayName": user["users"][0]['displayName']
+    })
+    # cookies["username"] = 
+    cookies.save()
+    value = json.loads(cookies.get("user"))
+    print("COOKIES value",value)
+    print(type(value))
+    st.session_state.user_details = json.loads(cookies.get("userdetails"))
+    # st.session_state.user = value
+    status_space.success(f"Welcome **{st.session_state.user_details['displayName']}**!")
     time.sleep(2)
     st.rerun()
 
@@ -155,9 +213,11 @@ nav_args = {
 }
 
 
-if "user" in st.session_state:
+if "user_details" in st.session_state:
+    login_user_with_cookie()
+    # print("COOKIES HERE VALUE", cookies.get("user"))
     nav_option = option_menu(
-        f"Daily Kharcha - {st.session_state.user['displayName']}",
+        f"Daily Kharcha",
         ["Today's Expenses", "Previous Expenses"],
         icons=['calendar-date', 'clock-history'],
         menu_icon="person-circle", 
