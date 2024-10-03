@@ -1,11 +1,10 @@
 import re
 import json
 import time
-import datetime
-from numpy import delete
 import pyrebase
 import firebase_admin
 import streamlit as st
+from requests.exceptions import HTTPError
 from streamlit_option_menu import option_menu
 from firebase_admin import credentials, firestore, auth as admin_auth
 
@@ -75,21 +74,27 @@ def validate_inputs(**params) -> bool:
 
     return not errors
 
-def start_registration_process(email, password, name):
+def start_registration_process(email, password, name) -> int:
     """
     This function will register, verify and update user profile.
     """
     with st.spinner("Registering..."):
-        register_user(email, password, name)
+        if register_user(email, password, name):
+            return -1
         error_space.success("Registration successful!")
     verify_email(st.session_state.reg_user)
     verify_email_dialog(st.session_state.reg_user)
+    return 0
 
-def register_user(email, password, name):
-    user = auth.create_user_with_email_and_password(email, password)
-    #!ERROR case need to be handled here
-    auth.update_profile(user['idToken'], display_name=name)
-    st.session_state.reg_user = user
+def register_user(email, password, name) -> int:
+    try:
+        user = auth.create_user_with_email_and_password(email, password)
+    except HTTPError:
+        return -1
+    else:
+        auth.update_profile(user['idToken'], display_name=name)
+        st.session_state.reg_user = user
+        return 0
 
 def verify_email(user):
     user = auth.refresh(user['refreshToken'])
@@ -197,12 +202,15 @@ else:
                     email = email.strip().lower()
                     password = password.strip()
                     conf_password = conf_password.strip()
-                    start_registration_process(email, password, name)
-                    user = admin_auth.get_user_by_email(email)
-                    if user.email_verified:
-                        error_space.success("You are verified! Please login to continue.")
+                    response = start_registration_process(email, password, name)
+                    if response == -1:
+                        error_space.error(f"Email ID is already registered. Please login to continue.")
                     else:
-                        error_space.success("Registration successful! Please verify your email to activate your account.")
+                        user = admin_auth.get_user_by_email(email)
+                        if user.email_verified:
+                            error_space.success("You are verified! Please login to continue.")
+                        else:
+                            error_space.success("Registration successful! Please verify your email to activate your account.")
                     st.session_state.clear()
 
     elif nav_option == "Login":
