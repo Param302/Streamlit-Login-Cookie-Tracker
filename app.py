@@ -131,10 +131,11 @@ def is_email_verified(user):
 
 
 def login_user(email, password):
-    user = auth.sign_in_with_email_and_password(email, password)
-    if not user:
+    try:
+        user = auth.sign_in_with_email_and_password(email, password)
+    except HTTPError:
         status_space.error("Invalid email or password.")
-        return None
+        return
     
     if not is_email_verified(user):
         status_space.error("Email Not Verified!")
@@ -153,8 +154,6 @@ nav_args = {
     "orientation": "horizontal"
 }
 
-# st.session_state['user_id'] = "1234"
-# st.session_state.pop("user_id", None)
 
 if "user" in st.session_state:
     nav_option = option_menu(
