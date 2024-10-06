@@ -215,15 +215,20 @@ nav_args = {
 if cookies.get("cookie_user") and cookies.get("cookie_user_details"):
     login_user_with_cookie()
     nav_option = option_menu(
-        f"Daily Kharcha",
+        f"Welcome {st.session_state.user_details['displayName']}!",
         ["Today's Expenses", "Previous Expenses"],
         icons=['calendar-date', 'clock-history'],
         menu_icon="person-circle", 
         **nav_args)
+
+    if st.button("Logout"):
+        logout_user()
     
     if nav_option == "Today's Expenses":
-        if st.button("Logout"):
-            logout_user()
+        x, y = st.columns(2)
+        x = x.text_input("Item Name")
+        y = y.number_input("Price", min_value=0.0, step=1.0, )
+
 else:
     st.markdown("""<style>.stSpinner>div{display:flex;justify-content:center;}</style>""",
             unsafe_allow_html=True)
