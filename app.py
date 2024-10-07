@@ -149,21 +149,19 @@ def is_email_verified(user):
 
 def login_user_with_cookie():
     user = cookies.get("cookie_user")
-    if not is_email_verified(user):
-        verify_email_dialog(user)
-        return
 
-    st.session_state.user = user
-
-    st.session_state.user = user
     try:
         auth.get_account_info(user['idToken'])
     except HTTPError:   # invalid token/token expired
         user = auth.refresh(user['refreshToken'])
     
-        cookies.set("cookie_user", user, key="cookie_user", **cookie_params)
-        cookies.set("cookie_user_details", cookies.get("cookie_user_details"), key="cookie_user_details", **cookie_params)
-        auth.get_account_info(user['idToken'])
+    if not is_email_verified(user):
+        verify_email_dialog(user)
+        return
+
+    cookies.set("cookie_user", user, key="cookie_user", **cookie_params)
+    cookies.set("cookie_user_details", cookies.get("cookie_user_details"), key="cookie_user_details", **cookie_params)
+    auth.get_account_info(user['idToken'])
 
     st.session_state["user_details"] = cookies.get("cookie_user_details")
 
