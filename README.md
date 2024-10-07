@@ -1,6 +1,6 @@
 # Daily Kharcha Web App - Streamlit version
 
-> ![CAUTION]
+> [!CAUTION]
 > This project is stopped and not maintained anymore, due to streamlit limitations.
 
 ### Tech Stack
