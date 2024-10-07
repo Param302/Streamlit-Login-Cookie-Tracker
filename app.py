@@ -204,6 +204,25 @@ def logout_user():
     reload_page()
 
 
+def check_and_add_inputs():
+    for i in range(st.session_state.num_items):
+        item_name = st.session_state.get(f'item_name_{i}', "")
+        price = st.session_state.get(f'price_{i}', 0.0)
+        
+        # If current inputs are filled, increase the number of inputs
+        if item_name and price:
+            if i == st.session_state.num_items - 1:
+                st.session_state.num_items += 1
+        
+        else:
+            if i == st.session_state.num_items - 1 and st.session_state.num_items > 1:
+                st.session_state.num_items -= 1
+                if st.session_state.get(f'item_name_{i}', ""):
+                    st.session_state.pop(f'item_name_{i}')
+
+
+
+
 nav_args = {
     "styles": {"menu-title": {"align-self": "center"}},
     "default_index": 0,
@@ -223,30 +242,15 @@ if cookies.get("cookie_user") and cookies.get("cookie_user_details"):
         logout_user()
     
     if nav_option == "Today's Expenses":
-        # x, y = st.columns(2)
-        # x = x.text_input("Item Name")
-        # y = y.number_input("Price", min_value=0.0, step=1.0, )
-
         if 'num_items' not in st.session_state:
-            st.session_state.num_items = 1  # Start with one pair of inputs
+            st.session_state.num_items = 1
 
-        # Function to check if all current inputs are filled
-        def check_and_add_inputs():
-            for i in range(st.session_state.num_items):
-                item_name = st.session_state.get(f'item_name_{i}', "")
-                price = st.session_state.get(f'price_{i}', 0.0)
-                
-                # If current inputs are filled, increase the number of inputs
-                if item_name and price:
-                    if i == st.session_state.num_items - 1:
-                        st.session_state.num_items += 1
-
-        # Check if inputs are filled and trigger adding new ones
         check_and_add_inputs()
 
-        # Create input fields dynamically
         for i in range(st.session_state.num_items):
-            x, y = st.columns(2)
+            
+            serial_num, x, y = st.columns([0.1, 0.45, 0.45], vertical_alignment="bottom", gap="small")
+            serial_num.write(f"##### {i+1}.")
             item_name = x.text_input(f'Item Name {i+1}', key=f'item_name_{i}')
             price = y.number_input(f'Price {i+1}', key=f'price_{i}', min_value=0.0, step=0.01)
         
