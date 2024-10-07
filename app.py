@@ -26,7 +26,7 @@ firebase = initialize_firebase()
 auth = firebase.auth()
 db = firestore.client()
 
-st.set_page_config(page_title="Daily Kharcha", page_icon="💰")
+st.set_page_config(page_title="Login & Cookie Tracker", page_icon="💰")
 
 cookies = CookieManager()
 cookie_params = {
@@ -233,7 +233,7 @@ if cookies.get("cookie_user") and cookies.get("cookie_user_details"):
     login_user_with_cookie()
     nav_option = option_menu(
         f"Welcome {st.session_state.user_details['displayName']}!",
-        ["Today's Expenses", "Previous Expenses"],
+        ["Tab 1", "Tab 2"],
         icons=['calendar-date', 'clock-history'],
         menu_icon="person-circle", 
         **nav_args)
@@ -267,7 +267,7 @@ else:
             unsafe_allow_html=True)
             
     nav_option = option_menu(
-        "Daily Kharcha",
+        "Login & Cookie Tracker",
         ["Login", "Register"],
         icons=['box-arrow-in-right', 'person-plus'],
         menu_icon="person-circle",
