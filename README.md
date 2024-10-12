@@ -1,4 +1,4 @@
-# Daily Kharcha Web App - Streamlit version
+# Streamlit Login Cookie Tracker
 
 > [!CAUTION]
 > This project is stopped and not maintained anymore, due to streamlit limitations.
